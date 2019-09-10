@@ -4,6 +4,8 @@ import Meetup from '../models/Meetup';
 import User from '../models/User';
 import Subscription from '../models/Subscription';
 import Notification from '../schemas/Notification';
+import Queue from '../../lib/Queue';
+import SubscriptionMail from '../jobs/SubscriptionMail';
 
 class SubscriptionController {
   async store(req, res) {
@@ -63,6 +65,15 @@ class SubscriptionController {
     await Notification.create({
       content: `O usuário ${user.name} confirmou presença no seu evento no ${formattedDate}`,
       user: meetup.user_id,
+    });
+    /**
+     * Enviar um email ao organizador que alguém se inscreveu no seu MeetUp
+     */
+    const organizer = await User.findByPk(meetup.user_id);
+    await Queue.add(SubscriptionMail.key, {
+      organizer,
+      meetup,
+      user,
     });
     return res.json(subscription);
   }
